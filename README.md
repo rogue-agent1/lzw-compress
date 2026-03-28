@@ -1,6 +1,6 @@
 # lzw-compress
 
-LZW compression/decompression.""".
+LZW compression algorithm.
 
 Zero dependencies. Python 3.8+.
 
