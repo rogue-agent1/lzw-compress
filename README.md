@@ -1,5 +1,11 @@
 # lzw-compress
-LZW compression/decompression. Zero dependencies.
+
+LZW compression/decompression.""".
+
+Zero dependencies. Python 3.8+.
+
+## Usage
+
 ```bash
-python3 lzw_compress.py --demo
+python3 lzw_compress.py --help
 ```

@@ -1,32 +1,40 @@
 #!/usr/bin/env python3
-"""LZW compression/decompression."""
-import sys
+"""lzw_compress - LZW compression/decompression."""
+import sys, struct
+
 def compress(data):
-    d={chr(i):i for i in range(256)};nc=256;w="";out=[]
-    for c in data:
-        wc=w+c
-        if wc in d: w=wc
-        else: out.append(d[w]);d[wc]=nc;nc+=1;w=c
-    if w: out.append(d[w])
-    return out
+    d = {bytes([i]): i for i in range(256)}
+    next_code = 256; w = b""; codes = []
+    for byte in data:
+        wb = w + bytes([byte])
+        if wb in d: w = wb
+        else: codes.append(d[w]); d[wb] = next_code; next_code += 1; w = bytes([byte])
+    if w: codes.append(d[w])
+    return codes
+
 def decompress(codes):
-    d={i:chr(i) for i in range(256)};nc=256;w=chr(codes[0]);out=[w]
+    d = {i: bytes([i]) for i in range(256)}
+    next_code = 256; w = d[codes[0]]; result = [w]
     for code in codes[1:]:
-        if code in d: entry=d[code]
-        elif code==nc: entry=w+w[0]
+        if code in d: entry = d[code]
+        elif code == next_code: entry = w + w[:1]
         else: raise ValueError(f"Bad code: {code}")
-        out.append(entry);d[nc]=w+entry[0];nc+=1;w=entry
-    return ''.join(out)
-def main():
-    if "--demo" in sys.argv:
-        text="TOBEORNOTTOBEORTOBEORNOT"
-        codes=compress(text);dec=decompress(codes)
-        ratio=len(codes)*12/8/len(text)*100
-        print(f"Original:     '{text}' ({len(text)} bytes)")
-        print(f"Compressed:   {len(codes)} codes ({ratio:.0f}% of original at 12-bit)")
-        print(f"Decompressed: '{dec}'")
-        print(f"Match: {'✓' if dec==text else '✗'}")
-    else:
-        data=sys.stdin.read();codes=compress(data)
-        print(f"Compressed {len(data)} chars to {len(codes)} codes")
-if __name__=="__main__": main()
+        result.append(entry)
+        d[next_code] = w + entry[:1]; next_code += 1; w = entry
+    return b"".join(result)
+
+if __name__ == "__main__":
+    if len(sys.argv) < 3: print("Usage: lzw_compress.py <compress|decompress> <file> [output]"); sys.exit(1)
+    cmd = sys.argv[1]; inf = sys.argv[2]; outf = sys.argv[3] if len(sys.argv) > 3 else None
+    if cmd == "compress":
+        data = open(inf, "rb").read()
+        codes = compress(data)
+        out = struct.pack(f">{len(codes)}H", *codes)
+        if outf: open(outf, "wb").write(out); print(f"{len(data)} → {len(out)} bytes ({len(out)/len(data)*100:.1f}%)")
+        else: print(f"Codes: {len(codes)}, ratio: {len(codes)*2/len(data)*100:.1f}%")
+    elif cmd == "decompress":
+        raw = open(inf, "rb").read()
+        codes = list(struct.unpack(f">{len(raw)//2}H", raw))
+        data = decompress(codes)
+        if outf: open(outf, "wb").write(data); print(f"Decompressed: {len(data)} bytes")
+        else: sys.stdout.buffer.write(data)
